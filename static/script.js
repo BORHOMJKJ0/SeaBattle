@@ -60,7 +60,6 @@ async function handleServerResponse(response) {
     }
 }
 
-
 async function checkServerStatus() {
     const statusElement = document.getElementById('server-status');
     try {
@@ -120,13 +119,16 @@ async function loadGridFromServer() {
                 currentGrid.cells[r] = [];
                 for (let c = 0; c < currentGrid.size; c++) {
                     const cellData = data.grid[r][c];
-                    currentGrid.cells[r][c] = cellData.type || 'sea';
+                    currentGrid.cells[r][c] = cellData.type === 'ship' ? 'ship' : 'sea';
                 }
             }
 
             renderGrid();
             updateColumnRequirements();
             logToConsole('✅ تم تحميل البيانات بنجاح');
+            logToConsole(`📊 حجم الشبكة: ${currentGrid.size}x${currentGrid.size}`);
+            logToConsole(`📊 متطلبات الصفوف: [${currentGrid.rowRequirements.join(', ')}]`);
+            logToConsole(`📊 متطلبات الأعمدة: [${currentGrid.colRequirements.join(', ')}]`);
         } else {
             throw new Error('Invalid data format from server');
         }
@@ -142,14 +144,18 @@ function updateColumnRequirements() {
     const container = document.getElementById('requirements-top');
     container.innerHTML = '';
 
-    container.style.gridTemplateColumns = `repeat(${currentGrid.size}, 60px)`;
+    const emptyCell = document.createElement('div');
+    emptyCell.className = 'req-cell-empty';
+    container.appendChild(emptyCell);
 
     for (let i = 0; i < currentGrid.size; i++) {
         const div = document.createElement('div');
         div.className = 'req-cell';
-        div.textContent = currentGrid.colRequirements[i];
+        div.textContent = currentGrid.colRequirements[i] || '0';
         container.appendChild(div);
     }
+
+    container.style.gridTemplateColumns = `60px repeat(${currentGrid.size}, 60px)`;
 }
 
 function renderGrid() {
@@ -160,6 +166,11 @@ function renderGrid() {
         const rowDiv = document.createElement('div');
         rowDiv.className = 'board-row';
 
+        const rowReqDiv = document.createElement('div');
+        rowReqDiv.className = 'row-req';
+        rowReqDiv.textContent = currentGrid.rowRequirements[r] || '0';
+        rowDiv.appendChild(rowReqDiv);
+
         const gridDiv = document.createElement('div');
         gridDiv.className = 'grid';
         gridDiv.style.gridTemplateColumns = `repeat(${currentGrid.size}, 60px)`;
@@ -167,26 +178,42 @@ function renderGrid() {
         for (let c = 0; c < currentGrid.size; c++) {
             const cell = document.createElement('div');
             cell.className = 'cell';
-            cell.textContent = currentGrid.cells[r][c] === 'ship' ? '🚢' : '🌊';
-            cell.classList.add(currentGrid.cells[r][c] === 'ship' ? 'ship' : 'sea');
-
+            cell.dataset.row = r;
+            cell.dataset.col = c;
+            
+            const cellType = currentGrid.cells[r][c];
+            cell.textContent = cellType === 'ship' ? '🚢' : '🌊';
+            cell.classList.add(cellType === 'ship' ? 'ship' : 'sea');
 
             gridDiv.appendChild(cell);
         }
 
         rowDiv.appendChild(gridDiv);
-
-        const rowReqDiv = document.createElement('div');
-        rowReqDiv.className = 'row-req';
-        rowReqDiv.textContent = currentGrid.rowRequirements[r];
-        rowDiv.appendChild(rowReqDiv);
-
         boardRows.appendChild(rowDiv);
     }
 }
 
+function toggleCell(row, col) {
+    const currentType = currentGrid.cells[row][col];
+    const newType = currentType === 'ship' ? 'sea' : 'ship';
+    
+    currentGrid.cells[row][col] = newType;
+    
+    const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+    if (cell) {
+        cell.textContent = newType === 'ship' ? '🚢' : '🌊';
+        cell.className = 'cell ' + newType;
+    }
+    
+    clearResults();
+    logToConsole(`🔄 تم تغيير الخلية (${row + 1}, ${col + 1}) إلى ${newType === 'ship' ? 'سفينة' : 'بحر'}`);
+}
+
 function resetGrid() {
-    if (currentGrid.size === 0) return;
+    if (currentGrid.size === 0) {
+        alert('يرجى تحميل الشبكة أولاً');
+        return;
+    }
 
     for (let r = 0; r < currentGrid.size; r++) {
         for (let c = 0; c < currentGrid.size; c++) {
@@ -196,7 +223,7 @@ function resetGrid() {
 
     renderGrid();
     clearResults();
-    logToConsole('✅ تم إعادة تعيين الشبكة إلى الحالة الافتراضية (كلها بحر)');
+    logToConsole('🔄 تم إعادة تعيين الشبكة إلى الحالة الافتراضية (كلها بحر)');
 }
 
 async function checkSolution() {
@@ -217,13 +244,13 @@ async function checkSolution() {
 
     try {
         logToConsole('🔍 بدء التحقق من الحل...');
-
         const gridData = currentGrid.cells.map(row => 
             row.map(cell => cell === 'ship' ? 2 : 1)
         );
 
         const requestData = { grid: gridData };
         console.log('Sending validation request:', requestData);
+        logToConsole('📤 إرسال البيانات للخادم للتحقق...');
 
         const response = await fetch(API_ENDPOINTS.validate, {
             method: 'POST',
@@ -245,10 +272,19 @@ async function checkSolution() {
             const successMessage = validationResult.message || 'الحل صحيح ✅';
             log.innerHTML = `<div class="log-entry success">${successMessage}</div>`;
             logToConsole('✅ التحقق مكتمل: الحل صحيح');
+            
+            logToConsole('🎉 تهانينا! جميع القواعد محققة بنجاح');
         } else {
             const errorMessage = validationResult.message || 'الحل خاطئ ❌';
             log.innerHTML = `<div class="log-entry error">${errorMessage}</div>`;
             logToConsole('❌ التحقق مكتمل: الحل غير صحيح');
+
+            if (validationResult.errors && Array.isArray(validationResult.errors)) {
+                validationResult.errors.forEach(error => {
+                    log.innerHTML += `<div class="log-entry error">• ${error}</div>`;
+                    logToConsole(`❌ خطأ: ${error}`);
+                });
+            }
 
             if (validationResult.invalid_cells && Array.isArray(validationResult.invalid_cells)) {
                 highlightInvalidCells(validationResult.invalid_cells);
@@ -266,18 +302,12 @@ async function checkSolution() {
 }
 
 function highlightInvalidCells(invalidCells) {
-    const boardRows = document.getElementById('board-rows');
+    const cells = document.querySelectorAll('.cell');
     invalidCells.forEach(([r, c]) => {
-        const rowDiv = boardRows.children[r];
-        if (!rowDiv) return;
-
-        const gridDiv = rowDiv.querySelector('.grid');
-        if (!gridDiv) return;
-
-        const cell = gridDiv.children[c];
-        if (!cell) return;
-
-        cell.classList.add('invalid');
+        const cell = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
+        if (cell) {
+            cell.classList.add('invalid');
+        }
     });
 }
 
@@ -296,7 +326,8 @@ function clearResults() {
 
 function logToConsole(text) {
     const consoleEl = document.getElementById('console');
-    consoleEl.textContent += '\n' + text;
+    const timestamp = new Date().toLocaleTimeString('ar-SA');
+    consoleEl.textContent += `\n[${timestamp}] ${text}`;
     consoleEl.scrollTop = consoleEl.scrollHeight;
 }
 
@@ -320,8 +351,11 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     (async () => {
+        logToConsole('🚀 بدء تشغيل مدقق معركة البحر...');
         if (await checkServerStatus()) {
             await loadGridFromServer();
+        } else {
+            logToConsole('⚠️ يرجى الضغط على "تحميل البيانات" بعد التأكد من تشغيل الخادم');
         }
     })();
 });

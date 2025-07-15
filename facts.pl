@@ -26,22 +26,22 @@ row(3, 0).
 row(4, 0).
 
 col(1, 2).
-col(2, 2).
-col(3, 0).
+col(2, 0).
+col(3, 2).
 col(4, 0).
 
 % ship(Length, Count)
-ship(1, 4).
+ship(2, 2).
 
 % cell(row , col , type , shape , direction)
 cell(1, 1, 2, 2, 0).
-cell(1, 2, 2, 1, 4).
-cell(1, 3, 1, 4, 0).
+cell(1, 2, 1, 1, 4).
+cell(1, 3, 2, 4, 0).
 cell(1, 4, 1, 4, 0).
 
 cell(2, 1, 2, 2, 0).
-cell(2, 2, 2, 1, 3).
-cell(2, 3, 1, 4, 0).
+cell(2, 2, 1, 1, 3).
+cell(2, 3, 2, 4, 0).
 cell(2, 4, 1, 4, 0).
 
 cell(3, 1, 1, 4, 0).

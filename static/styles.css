@@ -63,6 +63,13 @@ h1 {
   display: grid;
   gap: 2px;
   margin-bottom: 10px;
+  align-items: center;
+}
+
+.req-cell-empty {
+  width: 60px;
+  height: 40px;
+  background: transparent;
 }
 
 .req-cell {
@@ -123,8 +130,18 @@ h1 {
   -moz-user-select: none;    
   -ms-user-select: none;     
   user-select: none;        
-  cursor: default;
-  box-sizing: border-box; 
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+
+.cell:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.cell:active {
+  transform: scale(0.95);
 }
 
 .sea {
@@ -255,20 +272,25 @@ h1 {
   overflow-y: auto;
   border: 2px solid #ecf0f1;
   margin-top: 20px;
+  display: none;
 }
 
 .results h3 {
   color: #2c3e50;
   margin-bottom: 15px;
   font-size: 1.5em;
+  border-bottom: 2px solid #ecf0f1;
+  padding-bottom: 10px;
 }
 
 .log-entry {
-  padding: 10px;
-  margin: 5px 0;
+  padding: 12px;
+  margin: 8px 0;
   border-radius: 8px;
   font-weight: bold;
   animation: fadeIn 0.5s ease-in-out;
+  font-size: 14px;
+  line-height: 1.4;
 }
 
 .log-entry.success {
@@ -312,21 +334,80 @@ h1 {
   padding: 15px;
   border-radius: 8px;
   font-family: "Courier New", monospace;
-  font-size: 14px;
+  font-size: 12px;
   margin-top: 20px;
-  max-height: 250px;
+  max-height: 300px;
   overflow-y: auto;
   white-space: pre-wrap;
   line-height: 1.4;
+  border: 2px solid #34495e;
+}
+
+.console-output::-webkit-scrollbar {
+  width: 8px;
+}
+
+.console-output::-webkit-scrollbar-track {
+  background: #34495e;
+}
+
+.console-output::-webkit-scrollbar-thumb {
+  background: #2ecc71;
+  border-radius: 4px;
+}
+
+.console-output::-webkit-scrollbar-thumb:hover {
+  background: #27ae60;
 }
 
 @media (max-width: 768px) {
+  .container {
+    padding: 20px;
+    margin: 10px;
+  }
+  
+  h1 {
+    font-size: 2em;
+  }
+  
   .game-board {
     width: 100%;
     overflow-x: auto;
   }
+  
   .controls {
     flex-direction: column;
     align-items: center;
+  }
+  
+  .btn {
+    width: 100%;
+    max-width: 300px;
+  }
+  
+  .cell {
+    width: 50px;
+    height: 50px;
+    font-size: 24px;
+  }
+  
+  .req-cell,
+  .req-cell-empty {
+    width: 50px;
+    height: 35px;
+  }
+  
+  .row-req {
+    width: 50px;
+    height: 50px;
+    font-size: 16px;
+  }
+  
+  .grid {
+    grid-template-columns: repeat(auto-fit, 50px) !important;
+  }
+  
+  .requirements-top {
+    grid-template-columns: 50px repeat(auto-fit, 50px) !important;
   }
 }

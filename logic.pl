@@ -3,6 +3,13 @@
 :- consult('facts.pl').
 :- use_module(library(http/json)).
 
+:- dynamic grid/1.  % هذا التعريف يسمح بتغيير grid/1 أثناء التشغيل
+
+neighbor_offsets([
+    (-1, 0), (1, 0), (0, -1), (0, 1),
+    (-1, -1), (-1, 1), (1, -1), (1, 1)
+]).
+
 validate_grid_with_details(GridData, Result) :-
     update_grid_from_json(GridData),
     findall(Error, check_validation_rule(Error), Errors),
@@ -13,12 +20,15 @@ validate_grid_with_details(GridData, Result) :-
 
 check_validation_rule("أعداد السفن في الصفوف غير صحيحة") :- \+ validate_row_counts.
 check_validation_rule("أعداد السفن في الأعمدة غير صحيحة") :- \+ validate_col_counts.
-check_validation_rule("السفن تتلاقى قطرياً - هذا غير مسموح") :- \+ validate_no_diagonal_touching.
+check_validation_rule("السفن لا يجب أن تلمس بعضها حتى قطرياً") :- \+ validate_no_touching_ships.
 check_validation_rule("شكل السفن غير صحيح - يجب أن تكون مستقيمة") :- \+ validate_ship_shapes.
 check_validation_rule("أعداد السفن حسب الطول غير صحيحة") :- \+ validate_ship_counts.
 
 update_grid_from_json(GridData) :-
     retractall(cell(_, _, _, _, _)),
+    retractall(grid(_)),
+    length(GridData, N),
+    assert(grid(N)),
     assert_grid_from_json(GridData, 1).
 
 assert_grid_from_json([], _).
@@ -29,7 +39,6 @@ assert_grid_from_json([Row|Rest], R) :-
 
 assert_row_from_json([], _, _).
 assert_row_from_json([Cell|Rest], R, C) :-
-    % Store as numbers for consistency
     (Cell == 2 -> Type = 2 ; Type = 1),
     assert(cell(R, C, Type, nil, nil)),
     C1 is C + 1,
@@ -40,7 +49,6 @@ validate_row_counts :-
     forall(between(1, MaxRows, R), (
         row(R, Expected),
         count_ships_in_row(R, Count),
-        format('DEBUG: Row ~w Expected: ~w, Count: ~w~n', [R, Expected, Count]),
         Expected =:= Count
     )).
 
@@ -50,26 +58,6 @@ validate_col_counts :-
         col(C, Expected),
         count_ships_in_col(C, Count),
         Expected =:= Count
-    )).
-
-validate_no_diagonal_touching :-
-    grid(Size),
-    forall(between(1, Size, R),
-        forall(between(1, Size, C),
-            (cell(R, C, 2, _, _) -> \+ has_diagonal_ship_neighbor(R, C) ; true))).
-
-validate_ship_shapes :-
-    find_all_ships(Ships),
-    forall(member(Ship, Ships), validate_ship_shape(Ship)).
-
-validate_ship_counts :-
-    find_all_ships(Ships),
-    group_ships_by_length(Ships, GroupedShips),
-    forall(ship(Length, ExpectedCount), (
-        ( member(Length-ActualCount, GroupedShips) ->
-            ActualCount =:= ExpectedCount
-        ; ExpectedCount =:= 0
-        )
     )).
 
 count_ships_in_row(R, Count) :-
@@ -82,114 +70,103 @@ count_ships_in_col(C, Count) :-
     findall(1, (between(1, MaxRows, R), cell(R, C, 2, _, _)), L),
     length(L, Count).
 
-has_diagonal_ship_neighbor(R, C) :-
-    DiagonalOffsets = [(-1,-1), (-1,1), (1,-1), (1,1)],
-    member((DR, DC), DiagonalOffsets),
-    NR is R + DR,
-    NC is C + DC,
-    grid(Size),
-    NR >= 1, NR =< Size,
-    NC >= 1, NC =< Size,
-    cell(NR, NC, 2, _, _).
+validate_no_touching_ships :-
+    find_all_ships(Ships),
+    \+ (
+        member(Ship1, Ships),
+        member(Ship2, Ships),
+        Ship1 \= Ship2,
+        ships_touching(Ship1, Ship2)
+    ).
+
+ships_touching(Ship1, Ship2) :-
+    member((R1,C1), Ship1),
+    member((R2,C2), Ship2),
+    DR is abs(R1 - R2), DC is abs(C1 - C2),
+    DR =< 1, DC =< 1,
+    (DR > 0 ; DC > 0).
+
+validate_ship_shapes :-
+    find_all_ships(Ships),
+    forall(member(Ship, Ships), valid_ship_shape(Ship)).
+
+valid_ship_shape(Ship) :-
+    maplist(arg(1), Ship, Rows),
+    maplist(arg(2), Ship, Cols),
+    ( all_equal(Rows) -> consecutive(Cols)
+    ; all_equal(Cols) -> consecutive(Rows)
+    ).
+
+all_equal([_]).
+all_equal([X,Y|Rest]) :- X =:= Y, all_equal([Y|Rest]).
+
+consecutive(List) :-
+    sort(List, Sorted),
+    Sorted = [Min|_],
+    last(Sorted, Max),
+    length(Sorted, Len),
+    Max - Min + 1 =:= Len.
 
 find_all_ships(Ships) :-
-    grid(Size),
-    findall(Ship, find_ship_starting_at(Size, Ship), AllShips),
-    sort(AllShips, Ships).
+    grid(_),
+    findall((R,C), cell(R,C,2,_,_), ShipCells),
+    find_all_ships(ShipCells, [], Ships).
 
-find_ship_starting_at(Size, Ship) :-
-    between(1, Size, R),
-    between(1, Size, C),
-    cell(R, C, 2, _, _),
-    \+ has_ship_neighbor_before(R, C),
-    build_ship_from(R, C, Ship).
+find_all_ships([], _, []).
+find_all_ships([H|Rest], Visited, [Ship|Ships]) :-
+    \+ member(H, Visited),
+    build_ship_from(H, [H], Ship),
+    append(Visited, Ship, NewVisited),
+    subtract(Rest, Ship, NewRest),
+    find_all_ships(NewRest, NewVisited, Ships).
+find_all_ships([H|Rest], Visited, Ships) :-
+    member(H, Visited), find_all_ships(Rest, Visited, Ships).
 
-has_ship_neighbor_before(R, C) :-
-    (R > 1, cell(R-1, C, 2, _, _)) ; (C > 1, cell(R, C-1, 2, _, _)).
-
-build_ship_from(R, C, Ship) :-
-    ( has_horizontal_continuation(R, C) -> build_horizontal_ship(R, C, Ship)
-    ; has_vertical_continuation(R, C) -> build_vertical_ship(R, C, Ship)
-    ; Ship = [(R, C)]
+build_ship_from((R,C), Acc, Ship) :-
+    neighbor_offsets(Offsets),
+    findall((NR,NC),
+        ( member((DR,DC), Offsets),
+          NR is R + DR, NC is C + DC,
+          grid(Size), NR >=1, NR =< Size, NC >=1, NC =< Size,
+          cell(NR, NC, 2, _, _),
+          \+ member((NR,NC), Acc)
+        ), Neighbors),
+    ( Neighbors = [] -> Ship = Acc
+    ; Neighbors = [Next|_],
+      build_ship_from(Next, [Next|Acc], Ship)
     ).
 
-has_horizontal_continuation(R, C) :-
-    grid(Size), C1 is C + 1, C1 =< Size, cell(R, C1, 2, _, _).
+validate_ship_counts :-
+    find_all_ships(Ships),
+    group_ships_by_length(Ships, Grouped),
+    forall(ship(Len, Count), (
+        ( member(Len-Actual, Grouped) -> Actual =:= Count ; Count =:= 0 )
+    )).
 
-has_vertical_continuation(R, C) :-
-    grid(Size), R1 is R + 1, R1 =< Size, cell(R1, C, 2, _, _).
-
-build_horizontal_ship(R, C, Ship) :-
-    build_horizontal_ship_acc(R, C, [], Ship).
-
-build_horizontal_ship_acc(R, C, Acc, Ship) :-
-    ( cell(R, C, 2, _, _) ->
-        NewAcc = [(R, C)|Acc],
-        C1 is C + 1,
-        build_horizontal_ship_acc(R, C1, NewAcc, Ship)
-    ; reverse(Acc, Ship)
-    ).
-
-build_vertical_ship(R, C, Ship) :-
-    build_vertical_ship_acc(R, C, [], Ship).
-
-build_vertical_ship_acc(R, C, Acc, Ship) :-
-    ( cell(R, C, 2, _, _) ->
-        NewAcc = [(R, C)|Acc],
-        R1 is R + 1,
-        build_vertical_ship_acc(R1, C, NewAcc, Ship)
-    ; reverse(Acc, Ship)
-    ).
-
-validate_ship_shape(Ship) :-
-    length(Ship, Length),
-    (Length =:= 1 -> true ;
-    (Length > 1 -> (is_horizontal_ship(Ship) ; is_vertical_ship(Ship)))).
-
-is_horizontal_ship([(R, C1), (R, C2)|Rest]) :- C2 =:= C1 + 1, is_horizontal_ship([(R, C2)|Rest]).
-is_horizontal_ship([_]).
-
-is_vertical_ship([(R1, C), (R2, C)|Rest]) :- R2 =:= R1 + 1, is_vertical_ship([(R2, C)|Rest]).
-is_vertical_ship([_]).
-
-group_ships_by_length(Ships, GroupedShips) :-
-    findall(L, (member(Ship, Ships), length(Ship, L)), Lengths),
-    sort(Lengths, UniqueLengths),
+group_ships_by_length(Ships, Grouped) :-
+    findall(Len, (member(S, Ships), length(S, Len)), Lengths),
+    sort(Lengths, Unique),
     findall(Len-Count, (
-        member(Len, UniqueLengths),
-        include(=(Len), Lengths, Filtered),
-        length(Filtered, Count)
-    ), GroupedShips).
-
-get_complete_grid_data(JsonResponse) :-
-    reload_facts,
-    grid(Size),
-    findall(Row,
-        (between(1, Size, R),
-         findall(CellData,
-            (between(1, Size, C),
-             cell(R, C, TypeNum, ShapeNum, DirNum),
-             (TypeNum =:= 2 -> TypeAtom = ship ; TypeAtom = sea),
-             CellData = _{type: TypeAtom, shape: ShapeNum, direction: DirNum}
-            ), Row)
-        ), GridMatrix),
-
-    findall(_{required: Count}, (between(1, Size, R), row(R, Count)), RowReqs),
-    findall(_{required: Count}, (between(1, Size, C), col(C, Count)), ColReqs),
-    findall(_{length: Length, count: Count}, ship(Length, Count), Ships),
-
-    JsonResponse = _{
-        size: Size,
-        grid: GridMatrix,
-        row_requirements: RowReqs,
-        col_requirements: ColReqs,
-        ships: Ships
-    }.
+        member(Len, Unique),
+        include(=(Len), Lengths, Matches),
+        length(Matches, Count)
+    ), Grouped).
 
 reload_facts :-
     unload_file('facts.pl'),
-    catch(
-        consult('facts.pl'),
-        Error,
-        print_message(error, Error)
-    ).
+    catch(consult('facts.pl'), E, print_message(error, E)).
+
+get_complete_grid_data(Json) :-
+    reload_facts,
+    grid(Size),
+    findall(Row, (between(1, Size, R),
+        findall(Cell, (between(1, Size, C),
+            cell(R, C, T, S, D),
+            (T=2 -> Type=ship; Type=sea),
+            Cell=_{type:Type, shape:S, direction:D}
+        ), Row)
+    ), Grid),
+    findall(_{required:Count}, (between(1, Size, R), row(R, Count)), Rows),
+    findall(_{required:Count}, (between(1, Size, C), col(C, Count)), Cols),
+    findall(_{length:L, count:C}, ship(L,C), Ships),
+    Json = _{size:Size, grid:Grid, row_requirements:Rows, col_requirements:Cols, ships:Ships}.

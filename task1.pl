@@ -53,7 +53,11 @@ handle_validate(Request) :-
             (
                 http_read_json_dict(Request, Dict),
                 ( get_dict(grid, Dict, GridData) ->
-                    validate_grid_with_details(GridData, ValidationResult),
+                    catch(
+                        validate_grid_with_details(GridData, ValidationResult),
+                        InnerError,
+                        (reply_json_with_utf8(_{valid:false,message:"خطأ داخلي أثناء التحقق",error:InnerError}))
+                    ),
                     reply_json_with_utf8(ValidationResult)
                 ; throw(error(missing_grid_key, _))
                 )

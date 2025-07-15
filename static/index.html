@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>مدقق معركة البحر</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+    <div class="container">
+        <h1>🚢 مدقق معركة البحر</h1>
+
+        <div id="server-status" class="server-status offline">
+            🔴 غير متصل بالخادم
+        </div>
+
+        <div class="game-board">
+            <div class="requirements-top" id="requirements-top"></div>
+
+            <div class="board-rows" id="board-rows">
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn check-btn" id="check-btn">🔍 تحقق من الحل</button>
+            <button class="btn load-btn" id="load-btn">📥 تحميل البيانات</button>
+            <button class="btn reset-btn" id="reset-btn">🔄 إعادة تعيين</button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>جاري التحقق من الحل...</p>
+        </div>
+
+        <div class="results" id="results">
+            <h3>📊 نتائج التحقق:</h3>
+            <div id="log"></div>
+        </div>
+
+        <div class="console-output" id="console">
+=== Sea Battle Solution Validator ===
+=== Prolog Backend Integration ===
+        </div>
+    </div>
+
+    <script src="/static/script.js" defer></script>
+</body>
+</html>

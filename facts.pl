@@ -21,8 +21,8 @@ type(3 , empty).
 grid(4).
 
 row(1, 2).
-row(2, 2).
-row(3, 0).
+row(2, 0).
+row(3, 2).
 row(4, 0).
 
 col(1, 2).
@@ -31,22 +31,22 @@ col(3, 2).
 col(4, 0).
 
 % ship(Length, Count)
-ship(2, 2).
+ship(1, 4).
 
 % cell(row , col , type , shape , direction)
-cell(1, 1, 2, 2, 0).
-cell(1, 2, 1, 1, 4).
-cell(1, 3, 2, 4, 0).
+cell(1, 1, 2, 2, 3).
+cell(1, 2, 1, 4, 0).
+cell(1, 3, 2, 2, 4).
 cell(1, 4, 1, 4, 0).
 
-cell(2, 1, 2, 2, 0).
-cell(2, 2, 1, 1, 3).
-cell(2, 3, 2, 4, 0).
+cell(2, 1, 1, 4, 0).
+cell(2, 2, 1, 4, 0).
+cell(2, 3, 1, 4, 0).
 cell(2, 4, 1, 4, 0).
 
-cell(3, 1, 1, 4, 0).
+cell(3, 1, 2, 2, 3).
 cell(3, 2, 1, 4, 0).
-cell(3, 3, 1, 4, 0).
+cell(3, 3, 2, 2, 4).
 cell(3, 4, 1, 4, 0).
 
 cell(4, 1, 1, 4, 0).

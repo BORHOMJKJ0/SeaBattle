@@ -264,21 +264,30 @@ async function checkSolution() {
         const validationResult = await handleServerResponse(response);
         console.log('Validation response:', validationResult);
 
+        // إضافة سجل مفصل للتشخيص
+        logToConsole(`🔍 تفاصيل الاستجابة من الخادم:`);
+        logToConsole(`   - valid: ${validationResult.valid}`);
+        logToConsole(`   - message: "${validationResult.message || 'لا توجد رسالة'}"`);
+        logToConsole(`   - نوع البيانات: ${typeof validationResult.valid}`);
+
         loading.style.display = 'none';
         results.style.display = 'block';
         log.innerHTML = '';
 
-        if (validationResult.valid) {
-            const successMessage = validationResult.message || 'الحل صحيح ✅';
+        // التحقق الصحيح من صحة النتيجة
+        if (validationResult.valid === true) {
+            // الحل صحيح
+            const successMessage = 'الحل صحيح ✅';
             log.innerHTML = `<div class="log-entry success">${successMessage}</div>`;
             logToConsole('✅ التحقق مكتمل: الحل صحيح');
-            
             logToConsole('🎉 تهانينا! جميع القواعد محققة بنجاح');
-        } else {
+        } else if (validationResult.valid === false) {
+            // الحل خاطئ
             const errorMessage = validationResult.message || 'الحل خاطئ ❌';
             log.innerHTML = `<div class="log-entry error">${errorMessage}</div>`;
             logToConsole('❌ التحقق مكتمل: الحل غير صحيح');
 
+            // عرض الأخطاء إن وجدت
             if (validationResult.errors && Array.isArray(validationResult.errors)) {
                 validationResult.errors.forEach(error => {
                     log.innerHTML += `<div class="log-entry error">• ${error}</div>`;
@@ -286,9 +295,18 @@ async function checkSolution() {
                 });
             }
 
+            // تمييز الخلايا الخاطئة
             if (validationResult.invalid_cells && Array.isArray(validationResult.invalid_cells)) {
                 highlightInvalidCells(validationResult.invalid_cells);
+                logToConsole(`🔍 تم تمييز ${validationResult.invalid_cells.length} خلية خاطئة`);
             }
+        } else {
+            // حالة غير متوقعة - قيمة valid غير معروفة
+            logToConsole(`⚠️ حالة غير متوقعة: valid = ${validationResult.valid} (${typeof validationResult.valid})`);
+            const warningMessage = 'حالة غير متوقعة في التحقق ⚠️';
+            log.innerHTML = `<div class="log-entry warning">${warningMessage}</div>`;
+            log.innerHTML += `<div class="log-entry warning">القيمة المُرجعة: ${JSON.stringify(validationResult)}</div>`;
+            logToConsole('⚠️ يرجى التحقق من استجابة الخادم');
         }
 
     } catch (error) {

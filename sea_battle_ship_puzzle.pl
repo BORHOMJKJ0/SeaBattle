@@ -97,6 +97,9 @@ solution_checker_mode :-
 
 check_solution :-
 %! Simulate solution checking
+    %todo ╔════════════════════════════════════════════════════════════════╗
+    %todo ║                     here omar alogrithm go:                    ║
+    %todo ╚════════════════════════════════════════════════════════════════╝
     write('Checking solution...'), nl, 
     sleep(1),
     write('✓ Validating row constraints...'), nl,
@@ -171,6 +174,9 @@ puzzle_solver_mode :-
 
 solve :-
     %! Simulate solving process
+    %todo ╔════════════════════════════════════════════════════════════════╗
+    %todo ║                 here abdulrahman alogrithm go:                 ║
+    %todo ╚════════════════════════════════════════════════════════════════╝
     write('Starting solution process...'), nl, 
     sleep(1),
     write('🔍 Analyzing constraints...'), nl,

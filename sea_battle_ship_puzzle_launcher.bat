@@ -1,0 +1,1 @@
+swipl "C:/MyFiles/prolog course/main.pl"
